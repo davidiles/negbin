@@ -1,0 +1,41 @@
+
+    model{
+    
+    #------------------------------------------------
+    #Zero-inflated Negative Binomial
+    #------------------------------------------------
+    
+    #Priors
+    for (age in 1:A){
+      r[age] ~ dunif(0,50)
+      count.intercept[age] ~ dunif(0.001,200)
+      count.B0[age] <- log(count.intercept[age])
+
+      zero.intercept.age[age] ~ dunif(0.001,0.999)
+      zero.B0[age] <- log(zero.intercept.age[age]/(1-zero.intercept.age[age]))
+    
+    }
+
+    # Likelihood
+    for (year in 1:Y){
+      for (age in 1:A){
+        for (obs in 1:O){
+          N[year,age,obs] ~ dnegbin(p[year,age,obs],r[age])
+
+          #Count Model
+              p[year,age,obs] <- r[age]/(r[age]+(1-zero[year,age,obs])*mu.count[year,age,obs]) - 1e-10*zero[year,age,obs]
+              mu.count[year,age,obs] <- exp(log.mu.count[year,age,obs])
+              log.mu.count[year,age,obs] <- count.B0[age]
+
+              # Zero-Inflation
+              zero[year,age,obs] ~ dbern(prob[year,age,obs])
+              prob[year,age,obs] <- 1/(1+exp(-logit.prob[year,age,obs]))
+              logit.prob[year,age,obs] <-  zero.B0[age]
+        }
+      }
+    
+      
+      
+      }
+    }
+    

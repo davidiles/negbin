@@ -23,7 +23,7 @@ yc$fdepth=as.factor(yc$trawldepthft)
 
 plot(yc$avgtrawlcobsqkm ~ as.integer(as.character(yc$fyear)))
 
-addi <- formula(yc$countinyear ~ assnage + spawncob + fdepth| assnage + spawncob + fdepth )
+addi <- formula(yc$countinyear ~ assnage + spawncob + fdepth| assnage + spawncob + fdepth)
 addzi<- zeroinfl(addi, offset=logoffset, dist = "negbin",link = "logit", data = yc)
 
 summary(addzi)
@@ -71,20 +71,20 @@ cat("
     # Likelihood
     for(i in 1:N){
     
-    y[i] ~ dnegbin(p[i],r)
-    
-    #Count Model
-    p[i] <- r/(r+(1-zero[i])*mu.count[i]) - 1e-10*zero[i]
-    mu.count[i] <- exp(log.mu.count[i])
-    
-    log.mu.count[i] <- count.B0 + count.B0.offset*logoffset[i] + count.B1*assnage[i] + count.B2*spawncob[i] + count.B3*fdepth60[i] + count.B4*fdepth90[i] + count.B5*fdepth120[i]
-    
-    # Zero-Inflation
-    zero[i] ~ dbern(prob[i])
-    prob[i] <- 1/(1+exp(-logit.prob[i]))
-    logit.prob[i] <-  zero.B0 + zero.B1*assnage[i] + zero.B2*spawncob[i] + zero.B3*fdepth60[i] + zero.B4*fdepth90[i] + zero.B5*fdepth120[i]
-    
-    }
+      y[i] ~ dnegbin(p[i],r)
+      
+      #Count Model
+      p[i] <- r/(r+(1-zero[i])*mu.count[i]) - 1e-10*zero[i]
+      mu.count[i] <- exp(log.mu.count[i])
+      
+      log.mu.count[i] <- count.B0 + count.B0.offset*logoffset[i] + count.B1*assnage[i] + count.B2*spawncob[i] + count.B3*fdepth60[i] + count.B4*fdepth90[i] + count.B5*fdepth120[i]
+      
+      # Zero-Inflation
+      zero[i] ~ dbern(prob[i])
+      prob[i] <- 1/(1+exp(-logit.prob[i]))
+      logit.prob[i] <-  zero.B0 + zero.B1*assnage[i] + zero.B2*spawncob[i] + zero.B3*fdepth60[i] + zero.B4*fdepth90[i] + zero.B5*fdepth120[i]
+      
+      }
     }
     ",fill = TRUE)
 sink()
