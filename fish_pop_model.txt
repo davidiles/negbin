@@ -1,41 +1,128 @@
 
     model{
     
-    #------------------------------------------------
-    #Zero-inflated Negative Binomial
-    #------------------------------------------------
-    
+
     #Priors
+    # Reproduction
+    reprod.2 ~ dunif(0,10)
+    reprod.3 ~ dunif(0,10)
+    reprod.4 ~ dunif(0,10)
+    reprod.5 ~ dunif(0,10)
+
+    # Survival
+    surv.1 ~ dunif(0,1)
+    surv.2 ~ dunif(0,1)
+    surv.3 ~ dunif(0,1)
+    surv.4 ~ dunif(0,1)
+
+    # Each age has a different rate parameter (r) and a different zero-term
     for (age in 1:A){
+
       r[age] ~ dunif(0,50)
-      count.intercept[age] ~ dunif(0.001,200)
-      count.B0[age] <- log(count.intercept[age])
 
       zero.intercept.age[age] ~ dunif(0.001,0.999)
       zero.B0[age] <- log(zero.intercept.age[age]/(1-zero.intercept.age[age]))
     
     }
 
+
+    # FIRST YEAR
+    mu.count[1,1] ~ dunif(0,100)
+    mu.count[1,2] ~ dunif(0,100)
+    mu.count[1,3] ~ dunif(0,100)
+    mu.count[1,4] ~ dunif(0,100)
+    mu.count[1,5] ~ dunif(0,100)
+
+    for (obs in 1:O){
+    
+        N[1,1,obs] ~ dnegbin(p[1,1,obs],r[1])
+        N[1,2,obs] ~ dnegbin(p[1,2,obs],r[2])
+        N[1,3,obs] ~ dnegbin(p[1,3,obs],r[3])
+        N[1,4,obs] ~ dnegbin(p[1,4,obs],r[4])
+        N[1,5,obs] ~ dnegbin(p[1,5,obs],r[5])
+        
+        # Zero-Inflation for observations
+        zero[1,1,obs] ~ dbern(prob[1,1,obs])
+        prob[1,1,obs] <- 1/(1+exp(-logit.prob[1,1,obs]))
+        logit.prob[1,1,obs] <-  zero.B0[1]
+        
+        zero[1,2,obs] ~ dbern(prob[1,2,obs])
+        prob[1,2,obs] <- 1/(1+exp(-logit.prob[1,2,obs]))
+        logit.prob[1,2,obs] <-  zero.B0[2]
+        
+        zero[1,3,obs] ~ dbern(prob[1,3,obs])
+        prob[1,3,obs] <- 1/(1+exp(-logit.prob[1,3,obs]))
+        logit.prob[1,3,obs] <-  zero.B0[3]
+        
+        zero[1,4,obs] ~ dbern(prob[1,4,obs])
+        prob[1,4,obs] <- 1/(1+exp(-logit.prob[1,4,obs]))
+        logit.prob[1,4,obs] <-  zero.B0[4]
+        
+        zero[1,5,obs] ~ dbern(prob[1,5,obs])
+        prob[1,5,obs] <- 1/(1+exp(-logit.prob[1,5,obs]))
+        logit.prob[1,5,obs] <-  zero.B0[5]
+        
+        #Calculate the probability parameter (one of the two key components of the ZINB) based on mu, r, and zero
+        p[1,1,obs] <- r[1]/(r[1]+(1-zero[1,1,obs])*mu.count[1,1]) - 1e-10*zero[1,1,obs]
+        p[1,2,obs] <- r[2]/(r[2]+(1-zero[1,2,obs])*mu.count[1,2]) - 1e-10*zero[1,2,obs]
+        p[1,3,obs] <- r[3]/(r[3]+(1-zero[1,3,obs])*mu.count[1,3]) - 1e-10*zero[1,3,obs]
+        p[1,4,obs] <- r[4]/(r[4]+(1-zero[1,4,obs])*mu.count[1,4]) - 1e-10*zero[1,4,obs]
+        p[1,5,obs] <- r[5]/(r[5]+(1-zero[1,5,obs])*mu.count[1,5]) - 1e-10*zero[1,5,obs]
+        
+    }
+
     # Likelihood
-    for (year in 1:Y){
-      for (age in 1:A){
+    # Subsequent years
+    for (year in 2:Y){
+
+        #Population Model
+        mu.count[year,1] <- mu.count[year-1,3]*reprod.2 + mu.count[year-1,4]*reprod.3 + mu.count[year-1,5]*reprod.4
+        mu.count[year,2] <- mu.count[year-1,1]*surv.1
+        mu.count[year,3] <- mu.count[year-1,2]*surv.2
+        mu.count[year,4] <- mu.count[year-1,3]*surv.3
+        mu.count[year,5] <- mu.count[year-1,4]*surv.4
+
+        #Observations are contingent on current mean for each age class
         for (obs in 1:O){
-          N[year,age,obs] ~ dnegbin(p[year,age,obs],r[age])
 
-          #Count Model
-              p[year,age,obs] <- r[age]/(r[age]+(1-zero[year,age,obs])*mu.count[year,age,obs]) - 1e-10*zero[year,age,obs]
-              mu.count[year,age,obs] <- exp(log.mu.count[year,age,obs])
-              log.mu.count[year,age,obs] <- count.B0[age]
+          # Zero-Inflation for observations
+          zero[year,1,obs] ~ dbern(prob[year,1,obs])
+          prob[year,1,obs] <- 1/(1+exp(-logit.prob[year,1,obs]))
+          logit.prob[year,1,obs] <-  zero.B0[1]
 
-              # Zero-Inflation
-              zero[year,age,obs] ~ dbern(prob[year,age,obs])
-              prob[year,age,obs] <- 1/(1+exp(-logit.prob[year,age,obs]))
-              logit.prob[year,age,obs] <-  zero.B0[age]
+          zero[year,2,obs] ~ dbern(prob[year,2,obs])
+          prob[year,2,obs] <- 1/(1+exp(-logit.prob[year,2,obs]))
+          logit.prob[year,2,obs] <-  zero.B0[2]
+    
+          zero[year,3,obs] ~ dbern(prob[year,3,obs])
+          prob[year,3,obs] <- 1/(1+exp(-logit.prob[year,3,obs]))
+          logit.prob[year,3,obs] <-  zero.B0[3]
+    
+          zero[year,4,obs] ~ dbern(prob[year,4,obs])
+          prob[year,4,obs] <- 1/(1+exp(-logit.prob[year,4,obs]))
+          logit.prob[year,4,obs] <-  zero.B0[4]
+    
+          zero[year,5,obs] ~ dbern(prob[year,5,obs])
+          prob[year,5,obs] <- 1/(1+exp(-logit.prob[year,5,obs]))
+          logit.prob[year,5,obs] <-  zero.B0[5]
+    
+          #Probability parameter (one of the two key components of the ZINB) based on mu, r, and zero
+          p[year,1,obs] <- r[1]/(r[1]+(1-zero[year,1,obs])*mu.count[year,1]) - 1e-10*zero[year,1,obs]
+          p[year,2,obs] <- r[2]/(r[2]+(1-zero[year,2,obs])*mu.count[year,2]) - 1e-10*zero[year,2,obs]
+          p[year,3,obs] <- r[3]/(r[3]+(1-zero[year,3,obs])*mu.count[year,3]) - 1e-10*zero[year,3,obs]
+          p[year,4,obs] <- r[4]/(r[4]+(1-zero[year,4,obs])*mu.count[year,4]) - 1e-10*zero[year,4,obs]
+          p[year,5,obs] <- r[5]/(r[5]+(1-zero[year,5,obs])*mu.count[year,5]) - 1e-10*zero[year,5,obs]
+
+          N[year,1,obs] ~ dnegbin(p[year,1,obs],r[1])
+          N[year,2,obs] ~ dnegbin(p[year,2,obs],r[2])
+          N[year,3,obs] ~ dnegbin(p[year,3,obs],r[3])
+          N[year,4,obs] ~ dnegbin(p[year,4,obs],r[4])
+          N[year,5,obs] ~ dnegbin(p[year,5,obs],r[5])
+
         }
       }
     
       
       
-      }
     }
     

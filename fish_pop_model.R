@@ -117,8 +117,9 @@ cat("
 
           #Count Model
               
-              mu.count[year,age,obs] <- exp(log.mu.count[year,age,obs])
-              log.mu.count[year,age,obs] <- count.B0[age]
+              mu.count[year,age,obs] <- 
+              #mu.count[year,age,obs] <- exp(log.mu.count[year,age,obs])
+              #log.mu.count[year,age,obs] <- count.B0[age]
 
               # Zero-Inflation
               zero[year,age,obs] ~ dbern(prob[year,age,obs])
