@@ -91,10 +91,10 @@ cat("
 
     #Priors
     # Reproduction
-    reprod.2 ~ dunif(0,10)
-    reprod.3 ~ dunif(0,10)
-    reprod.4 ~ dunif(0,10)
-    reprod.5 ~ dunif(0,10)
+    reprod.2 ~ dunif(0,20)
+    reprod.3 ~ dunif(0,20)
+    reprod.4 ~ dunif(0,20)
+    reprod.5 ~ dunif(0,20)
 
     # Survival
     surv.1 ~ dunif(0,1)
@@ -118,11 +118,11 @@ cat("
 
 
     # FIRST YEAR
-    mu.count[1,1] ~ dunif(0,100)
-    mu.count[1,2] ~ dunif(0,100)
-    mu.count[1,3] ~ dunif(0,100)
-    mu.count[1,4] ~ dunif(0,100)
-    mu.count[1,5] ~ dunif(0,100)
+    mu.count[1,1] ~ dunif(0,1000)
+    mu.count[1,2] ~ dunif(0,1000)
+    mu.count[1,3] ~ dunif(0,1000)
+    mu.count[1,4] ~ dunif(0,1000)
+    mu.count[1,5] ~ dunif(0,1000)
 
     # Observations are contingent upon current mean
     for (obs in 1:O){
@@ -252,9 +252,9 @@ params <- c("r","zero.B0","beta.fdepth",
             )
 
 # MCMC settings
-ni <- 1000
+ni <- 100000
 nt <- 2
-nb <- 500
+nb <- 90000
 nc <- 3
 
 # Call JAGS from R
@@ -268,3 +268,56 @@ out <- jags(data = jags.data,
             n.burnin = nb)
 
 out
+
+mu.1.med = apply(out$sims.list$mu.count[,,1],2,function(x) quantile(x,0.500))
+mu.1.lcl = apply(out$sims.list$mu.count[,,1],2,function(x) quantile(x,0.025))
+mu.1.ucl = apply(out$sims.list$mu.count[,,1],2,function(x) quantile(x,0.975))
+
+mu.2.med = apply(out$sims.list$mu.count[,,2],2,function(x) quantile(x,0.500))
+mu.2.lcl = apply(out$sims.list$mu.count[,,2],2,function(x) quantile(x,0.025))
+mu.2.ucl = apply(out$sims.list$mu.count[,,2],2,function(x) quantile(x,0.975))
+
+mu.3.med = apply(out$sims.list$mu.count[,,3],2,function(x) quantile(x,0.500))
+mu.3.lcl = apply(out$sims.list$mu.count[,,3],2,function(x) quantile(x,0.025))
+mu.3.ucl = apply(out$sims.list$mu.count[,,3],2,function(x) quantile(x,0.975))
+
+mu.4.med = apply(out$sims.list$mu.count[,,4],2,function(x) quantile(x,0.500))
+mu.4.lcl = apply(out$sims.list$mu.count[,,4],2,function(x) quantile(x,0.025))
+mu.4.ucl = apply(out$sims.list$mu.count[,,4],2,function(x) quantile(x,0.975))
+
+mu.5.med = apply(out$sims.list$mu.count[,,5],2,function(x) quantile(x,0.500))
+mu.5.lcl = apply(out$sims.list$mu.count[,,5],2,function(x) quantile(x,0.025))
+mu.5.ucl = apply(out$sims.list$mu.count[,,5],2,function(x) quantile(x,0.975))
+
+
+library(ggplot2)
+p1 = ggplot() +
+  geom_ribbon(aes(x = years, ymin = mu.1.lcl, ymax = mu.1.ucl), alpha = 0.2) +
+  geom_line(aes(x = years, y = mu.1.med)) +
+  theme_bw()
+
+p2 = ggplot() +
+  geom_ribbon(aes(x = years, ymin = mu.2.lcl, ymax = mu.2.ucl), alpha = 0.2) +
+  geom_line(aes(x = years, y = mu.2.med)) +
+  theme_bw()
+
+p3 = ggplot() +
+  geom_ribbon(aes(x = years, ymin = mu.3.lcl, ymax = mu.3.ucl), alpha = 0.2) +
+  geom_line(aes(x = years, y = mu.3.med)) +
+  theme_bw()
+
+p4 = ggplot() +
+  geom_ribbon(aes(x = years, ymin = mu.4.lcl, ymax = mu.4.ucl), alpha = 0.2) +
+  geom_line(aes(x = years, y = mu.4.med)) +
+  theme_bw()
+
+p5 = ggplot() +
+  geom_ribbon(aes(x = years, ymin = mu.5.lcl, ymax = mu.5.ucl), alpha = 0.2) +
+  geom_line(aes(x = years, y = mu.5.med)) +
+  theme_bw()
+
+library(cowplot)
+
+fullplot = plot_grid(p1,p2,p3,p4,p5, nrow=5)
+print(fullplot)
+  
