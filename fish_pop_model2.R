@@ -1,5 +1,6 @@
 library(jagsUI)
 library(pscl)
+library(ggplot2)
 
 rm(list=ls())
 
@@ -311,8 +312,8 @@ jags.data <- list(N = N_array,
                   fdepth = fdepth_array)
 
 # Initial values
-inits <- function() list(zero = array(0,dim = dim(N_array)),
-                         r = c(0.35, 1.2, 1.2, 0.55, 0.55))
+inits <- function() list(zero = array(0,dim = dim(N_array))#,r = c(0.35, 1.2, 1.2, 0.55, 0.55)
+                         )
 
 # Parameters monitored
 params <- c("r","zero.B0","beta.fdepth",
@@ -324,14 +325,14 @@ params <- c("r","zero.B0","beta.fdepth",
             "logit.surv.0.sd","logit.surv.1.sd","logit.surv.2.sd","logit.surv.3.sd",
             
             "reprod.2","reprod.3","reprod.4",
-            "surv.0","surv.1","surv.2","surv.3","surv.4",
+            "surv.0","surv.1","surv.2","surv.3",
             "mu.count"
 )
 
 # MCMC settings
-ni <- 500
+ni <- 1000
 nt <- 2
-nb <- 100
+nb <- 800
 nc <- 2
 
 # Call JAGS from R
@@ -366,8 +367,6 @@ mu.5.med = apply(out$sims.list$mu.count[,,5],2,function(x) quantile(x,0.500))
 mu.5.lcl = apply(out$sims.list$mu.count[,,5],2,function(x) quantile(x,0.025))
 mu.5.ucl = apply(out$sims.list$mu.count[,,5],2,function(x) quantile(x,0.975))
 
-
-library(ggplot2)
 p1 = ggplot() +
   geom_ribbon(aes(x = years, ymin = mu.1.lcl, ymax = mu.1.ucl), alpha = 0.2) +
   geom_line(aes(x = years, y = mu.1.med)) +
