@@ -39,6 +39,7 @@ years = c(years[1] - 1, years)
 N_array = array(NA, dim = c(length(years), length(unique(yc$assnage)), max(obs_year_age)))
 
 # Arrays to store covariates
+yc$fdepth_fac = as.numeric(as.factor(yc$fdepth))
 fdepth_array = N_array
 
 for (y in unique(yc$year_cap)){
@@ -52,11 +53,14 @@ for (y in unique(yc$year_cap)){
       array_dim3 = i
       
       N_array[array_dim1, array_dim2, array_dim3] = year_age_dat$countinyear[i]
+      fdepth_array[array_dim1, array_dim2, array_dim3] = year_age_dat$fdepth_fac[i]
       
       
     }
   }
 }
+
+fdepth_array[is.na(fdepth_array)] = 1
 
 #Check out observed counts for each year and age class
 N_array[1,,] #Year 1 (2000); 17 obs for each age class
@@ -97,6 +101,10 @@ cat("
     surv.2 ~ dunif(0,1)
     surv.3 ~ dunif(0,1)
     surv.4 ~ dunif(0,1)
+
+    for (i in 1:4){
+      beta.fdepth[i] ~ dnorm(0,0.01) #Link this to mu through log link
+    }
 
     # Each age has a different rate parameter (r) and a different zero-term
     for (age in 1:A){
@@ -146,12 +154,19 @@ cat("
         prob[1,5,obs] <- 1/(1+exp(-logit.prob[1,5,obs]))
         logit.prob[1,5,obs] <-  zero.B0[5]
         
+        #Adjust mu for effort covariates(fdepth)
+        mu.count.adjusted.for.effort[1,1,obs] <- exp(log(mu.count[1,1]) + beta.fdepth[fdepth[1, 1, obs]])
+        mu.count.adjusted.for.effort[1,2,obs] <- exp(log(mu.count[1,2]) + beta.fdepth[fdepth[1, 2, obs]])
+        mu.count.adjusted.for.effort[1,3,obs] <- exp(log(mu.count[1,3]) + beta.fdepth[fdepth[1, 3, obs]])
+        mu.count.adjusted.for.effort[1,4,obs] <- exp(log(mu.count[1,4]) + beta.fdepth[fdepth[1, 4, obs]])
+        mu.count.adjusted.for.effort[1,5,obs] <- exp(log(mu.count[1,5]) + beta.fdepth[fdepth[1, 5, obs]])
+
         #Calculate the probability parameter (one of the two key components of the ZINB) based on mu, r, and zero
-        p[1,1,obs] <- r[1]/(r[1]+(1-zero[1,1,obs])*mu.count[1,1]) - 1e-10*zero[1,1,obs]
-        p[1,2,obs] <- r[2]/(r[2]+(1-zero[1,2,obs])*mu.count[1,2]) - 1e-10*zero[1,2,obs]
-        p[1,3,obs] <- r[3]/(r[3]+(1-zero[1,3,obs])*mu.count[1,3]) - 1e-10*zero[1,3,obs]
-        p[1,4,obs] <- r[4]/(r[4]+(1-zero[1,4,obs])*mu.count[1,4]) - 1e-10*zero[1,4,obs]
-        p[1,5,obs] <- r[5]/(r[5]+(1-zero[1,5,obs])*mu.count[1,5]) - 1e-10*zero[1,5,obs]
+        p[1,1,obs] <- r[1]/(r[1]+(1-zero[1,1,obs])* mu.count.adjusted.for.effort[1,1,obs]) - 1e-10*zero[1,1,obs]
+        p[1,2,obs] <- r[2]/(r[2]+(1-zero[1,2,obs])* mu.count.adjusted.for.effort[1,2,obs]) - 1e-10*zero[1,2,obs]
+        p[1,3,obs] <- r[3]/(r[3]+(1-zero[1,3,obs])* mu.count.adjusted.for.effort[1,3,obs]) - 1e-10*zero[1,3,obs]
+        p[1,4,obs] <- r[4]/(r[4]+(1-zero[1,4,obs])* mu.count.adjusted.for.effort[1,4,obs]) - 1e-10*zero[1,4,obs]
+        p[1,5,obs] <- r[5]/(r[5]+(1-zero[1,5,obs])* mu.count.adjusted.for.effort[1,5,obs]) - 1e-10*zero[1,5,obs]
         
     }
 
@@ -190,12 +205,19 @@ cat("
           prob[year,5,obs] <- 1/(1+exp(-logit.prob[year,5,obs]))
           logit.prob[year,5,obs] <-  zero.B0[5]
     
+          #Adjust mu for effort covariates(fdepth)
+          mu.count.adjusted.for.effort[year,1,obs] <- exp(log(mu.count[year,1]) + beta.fdepth[fdepth[year, 1, obs]])
+          mu.count.adjusted.for.effort[year,2,obs] <- exp(log(mu.count[year,2]) + beta.fdepth[fdepth[year, 2, obs]])
+          mu.count.adjusted.for.effort[year,3,obs] <- exp(log(mu.count[year,3]) + beta.fdepth[fdepth[year, 3, obs]])
+          mu.count.adjusted.for.effort[year,4,obs] <- exp(log(mu.count[year,4]) + beta.fdepth[fdepth[year, 4, obs]])
+          mu.count.adjusted.for.effort[year,5,obs] <- exp(log(mu.count[year,5]) + beta.fdepth[fdepth[year, 5, obs]])
+    
           #Probability parameter (one of the two key components of the ZINB) based on mu, r, and zero
-          p[year,1,obs] <- r[1]/(r[1]+(1-zero[year,1,obs])*mu.count[year,1]) - 1e-10*zero[year,1,obs]
-          p[year,2,obs] <- r[2]/(r[2]+(1-zero[year,2,obs])*mu.count[year,2]) - 1e-10*zero[year,2,obs]
-          p[year,3,obs] <- r[3]/(r[3]+(1-zero[year,3,obs])*mu.count[year,3]) - 1e-10*zero[year,3,obs]
-          p[year,4,obs] <- r[4]/(r[4]+(1-zero[year,4,obs])*mu.count[year,4]) - 1e-10*zero[year,4,obs]
-          p[year,5,obs] <- r[5]/(r[5]+(1-zero[year,5,obs])*mu.count[year,5]) - 1e-10*zero[year,5,obs]
+          p[year,1,obs] <- r[1]/(r[1]+(1-zero[year,1,obs])* mu.count.adjusted.for.effort[year,1,obs]) - 1e-10*zero[year,1,obs]
+          p[year,2,obs] <- r[2]/(r[2]+(1-zero[year,2,obs])* mu.count.adjusted.for.effort[year,2,obs]) - 1e-10*zero[year,2,obs]
+          p[year,3,obs] <- r[3]/(r[3]+(1-zero[year,3,obs])* mu.count.adjusted.for.effort[year,3,obs]) - 1e-10*zero[year,3,obs]
+          p[year,4,obs] <- r[4]/(r[4]+(1-zero[year,4,obs])* mu.count.adjusted.for.effort[year,4,obs]) - 1e-10*zero[year,4,obs]
+          p[year,5,obs] <- r[5]/(r[5]+(1-zero[year,5,obs])* mu.count.adjusted.for.effort[year,5,obs]) - 1e-10*zero[year,5,obs]
 
           N[year,1,obs] ~ dnegbin(p[year,1,obs],r[1])
           N[year,2,obs] ~ dnegbin(p[year,2,obs],r[2])
@@ -216,18 +238,23 @@ sink()
 jags.data <- list(N = N_array,
                   Y = dim(N_array)[1],
                   A = dim(N_array)[2],
-                  O = dim(N_array)[3])
+                  O = dim(N_array)[3],
+                  fdepth = fdepth_array)
 
 # Initial values
 inits <- function() list(zero = array(0,dim = dim(N_array)))
 
 # Parameters monitored
-params <- c("r","zero.B0")
+params <- c("r","zero.B0","beta.fdepth",
+            "reprod.2","reprod.3","reprod.4","reprod.5",
+            "surv.1","surv.2","surv.3","surv.4",
+            "mu.count"
+            )
 
 # MCMC settings
-ni <- 15000
+ni <- 1000
 nt <- 2
-nb <- 10000
+nb <- 500
 nc <- 3
 
 # Call JAGS from R
