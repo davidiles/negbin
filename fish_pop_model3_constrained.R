@@ -116,7 +116,6 @@ cat("
     log.reprod.2.intercept <- log(reprod.2.intercept)
     log.reprod.3.intercept <- log(reprod.3.intercept)
     log.reprod.4.intercept <- log(reprod.4.intercept)
-    
 
     # Survival
     surv.0.intercept ~ dunif(0,1)
@@ -160,6 +159,9 @@ cat("
     mu.count[1,4] ~ dunif(0,10000)
     mu.count[1,5] ~ dunif(0,10000)
     
+    sd.reprod ~ dunif(0,2)
+    tau.reprod <- pow(sd.reprod,-2)
+
     #-----------------------------------------
     # LIKELIHOOD
     #-----------------------------------------
@@ -167,10 +169,14 @@ cat("
     #Time-varying vital rates
     for (year in 1:Y){
     
-      reprod.2[year] <- exp(log(reprod.2.intercept) + reprod.2.beta.cobble * cobble_year[year])
-      reprod.3[year] <- exp(log(reprod.3.intercept) + reprod.3.beta.cobble * cobble_year[year])
-      reprod.4[year] <- exp(log(reprod.4.intercept) + reprod.4.beta.cobble * cobble_year[year])
+      log.reprod.2[year] ~ dnorm(log.reprod.2.intercept + reprod.2.beta.cobble * cobble_year[year], tau.reprod)
+      log.reprod.3[year] ~ dnorm(log.reprod.3.intercept + reprod.3.beta.cobble * cobble_year[year], tau.reprod)
+      log.reprod.4[year] ~ dnorm(log.reprod.4.intercept + reprod.4.beta.cobble * cobble_year[year], tau.reprod)
       
+      reprod.2[year] <- exp(log.reprod.2[year])
+      reprod.3[year] <- exp(log.reprod.3[year])
+      reprod.4[year] <- exp(log.reprod.4[year])
+
       surv.0[year] <- 1/(1+exp(-(logit.surv.0.intercept + surv.0.beta.cobble * cobble_year[year])))
       surv.1[year] <- 1/(1+exp(-(logit.surv.1.intercept + surv.1.beta.cobble * cobble_year[year])))
       surv.2[year] <- 1/(1+exp(-(logit.surv.2.intercept + surv.2.beta.cobble * cobble_year[year])))
