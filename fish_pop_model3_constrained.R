@@ -95,6 +95,7 @@ N_array[18,,] #Year 18 (2017); 6 obs for each age class
 cobble_year = aggregate(spawncob ~ year_hatch, FUN = mean, data = yc)
 cobble_year = subset(cobble_year, year_hatch %in% years)
 cobble_year = cobble_year[,2]
+cobble_year = (cobble_year - mean(cobble_year))/sd(cobble_year)
 cobble_year = c(cobble_year, cobble_year[length(cobble_year)]) #Use last cobble value for 2018
 plot(cobble_year ~ years, type = "o")
 
@@ -112,6 +113,11 @@ cat("
     reprod.3.intercept ~ dunif(0.001,100)
     reprod.4.intercept ~ dunif(0.001,100)
     
+    log.reprod.2.intercept <- log(reprod.2.intercept)
+    log.reprod.3.intercept <- log(reprod.3.intercept)
+    log.reprod.4.intercept <- log(reprod.4.intercept)
+    
+
     # Survival
     surv.0.intercept ~ dunif(0,1)
     surv.1.intercept ~ dunif(0,1)
