@@ -180,10 +180,10 @@ cat("
       reprod.3[year] <- exp(log.reprod.3[year])
       reprod.4[year] <- exp(log.reprod.4[year])
 
-      logit.surv.0[year] <- dnorm(logit.surv.0.intercept + surv.0.beta.cobble * cobble_year[year], tau.surv)
-      logit.surv.1[year] <- dnorm(logit.surv.1.intercept + surv.1.beta.cobble * cobble_year[year], tau.surv)
-      logit.surv.2[year] <- dnorm(logit.surv.2.intercept + surv.2.beta.cobble * cobble_year[year], tau.surv)
-      logit.surv.3[year] <- dnorm(logit.surv.3.intercept + surv.3.beta.cobble * cobble_year[year], tau.surv)
+      logit.surv.0[year] ~ dnorm(logit.surv.0.intercept + surv.0.beta.cobble * cobble_year[year], tau.surv)
+      logit.surv.1[year] ~ dnorm(logit.surv.1.intercept + surv.1.beta.cobble * cobble_year[year], tau.surv)
+      logit.surv.2[year] ~ dnorm(logit.surv.2.intercept + surv.2.beta.cobble * cobble_year[year], tau.surv)
+      logit.surv.3[year] ~ dnorm(logit.surv.3.intercept + surv.3.beta.cobble * cobble_year[year], tau.surv)
       
       surv.0[year] <- 1/(1+exp(-logit.surv.0[year]))
       surv.1[year] <- 1/(1+exp(-logit.surv.1[year]))
