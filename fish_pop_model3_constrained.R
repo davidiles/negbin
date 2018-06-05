@@ -38,7 +38,7 @@ yc$fdepth120[yc$fdepth == "120"] = 1
 # Create empty array to store age-specific abundances each year
 obs_year_age = table(yc[,c("year_cap","assnage")]) #number of observations per age class per year
 years = min(yc$year_cap):max(yc$year_cap)
-years = c(years[1] - 1, years)
+years = c(years[1] - 1, years, max(years)+1)
 
 ### Array to store counts each year
 # First dimension of array is years of study
@@ -92,6 +92,12 @@ N_array[16,,] #Year 16 (2015); 10 obs for each age class
 N_array[17,,] #Year 17 (2016); 4 obs for each age class
 N_array[18,,] #Year 18 (2017); 6 obs for each age class
 
+cobble_year = aggregate(spawncob ~ year_hatch, FUN = mean, data = yc)
+cobble_year = subset(cobble_year, year_hatch %in% years)
+cobble_year = cobble_year[,2]
+cobble_year = c(cobble_year, cobble_year[length(cobble_year)]) #Use last cobble value for 2018
+plot(cobble_year ~ years, type = "o")
+
 # Specify model in JAGS language
 sink("fish_pop_model.txt")
 cat("
@@ -102,49 +108,30 @@ cat("
     #-----------------------------------------
     
     # Reproduction
-    reprod.2.intercept ~ dunif(0,100)
-    log.reprod.2.intercept <- log(reprod.2.intercept)
-    log.reprod.3.adjust ~ dnorm(0,0.01)  
-    log.reprod.4.adjust ~ dnorm(0,0.01)  
-
-    #reprod.3.intercept ~ dunif(0,100)
-    #log.reprod.3.intercept <- log(reprod.3.intercept)
-    #reprod.4.intercept ~ dunif(0,100)
-    #log.reprod.4.intercept <- log(reprod.4.intercept)
-    
-    # Temporal variance in reproduction (not explained by covariates)
-    log.reprod.2.sd ~ dunif(0,5)
-    log.reprod.2.tau <- pow(log.reprod.2.sd,-2)
-
-    #log.reprod.3.sd ~ dunif(0,5)
-    #log.reprod.3.tau <- pow(log.reprod.3.sd,-2)
-    #log.reprod.4.sd ~ dunif(0,5)
-    #log.reprod.4.tau <- pow(log.reprod.4.sd,-2)
+    reprod.2.intercept ~ dunif(0.001,100)
+    reprod.3.intercept ~ dunif(0.001,100)
+    reprod.4.intercept ~ dunif(0.001,100)
     
     # Survival
     surv.0.intercept ~ dunif(0,1)
-    logit.surv.0.intercept <- log(surv.0.intercept/(1-surv.0.intercept))
-    
-    logit.surv.1.adjust ~ dnorm(0,0.01)
-    logit.surv.2.adjust ~ dnorm(0,0.01)
-    logit.surv.3.adjust ~ dnorm(0,0.01)
+    surv.1.intercept ~ dunif(0,1)
+    surv.2.intercept ~ dunif(0,1)
+    surv.3.intercept ~ dunif(0,1)
 
-    #surv.1.intercept ~ dunif(0,1)
-    #logit.surv.1.intercept <- log(surv.1.intercept/(1-surv.1.intercept))
-    #surv.2.intercept ~ dunif(0,1)
-    #logit.surv.2.intercept <- log(surv.2.intercept/(1-surv.2.intercept))
-    #surv.3.intercept ~ dunif(0,1)
-    #logit.surv.3.intercept <- log(surv.3.intercept/(1-surv.3.intercept))
-    
-    # Temporal variance in survival (not explained by covariates)
-    logit.surv.0.sd ~ dunif(0,10)
-    logit.surv.0.tau <- pow(logit.surv.0.sd,-2)
-    #logit.surv.1.sd ~ dunif(0,10)
-    #logit.surv.1.tau <- pow(logit.surv.1.sd,-2)
-    #logit.surv.2.sd ~ dunif(0,10)
-    #logit.surv.2.tau <- pow(logit.surv.2.sd,-2)
-    #logit.surv.3.sd ~ dunif(0,10)
-    #logit.surv.3.tau <- pow(logit.surv.3.sd,-2)
+    logit.surv.0.intercept <- log(surv.0.intercept/(1-surv.0.intercept))
+    logit.surv.1.intercept <- log(surv.1.intercept/(1-surv.1.intercept))
+    logit.surv.2.intercept <- log(surv.2.intercept/(1-surv.2.intercept))
+    logit.surv.3.intercept <- log(surv.3.intercept/(1-surv.3.intercept))
+
+    #effect of cobble
+    surv.0.beta.cobble ~ dnorm(0,0.01)
+    surv.1.beta.cobble ~ dnorm(0,0.01)
+    surv.2.beta.cobble ~ dnorm(0,0.01)
+    surv.3.beta.cobble ~ dnorm(0,0.01)
+
+    reprod.2.beta.cobble ~ dnorm(0,0.01)
+    reprod.3.beta.cobble ~ dnorm(0,0.01)
+    reprod.4.beta.cobble ~ dnorm(0,0.01)
 
     #Priors for observation effects
     #Effect of sampling depth on observed count
@@ -153,12 +140,11 @@ cat("
     beta.fdepth[3] ~ dnorm(0,0.01) #Link this to mu through log link
     beta.fdepth[4] ~ dnorm(0,0.01) #Link this to mu through log link
     
-    # Each age has a different rate parameter (r) and a different zero-term (these affect variance in observed counts)
+    # Each age has a different rate parameter (r) and a different zero-term; together these affect variance in observed counts
     for (age in 1:A){
       r[age] ~ dunif(0,50)
       zero.intercept.age[age] ~ dunif(0.001,0.999)
       zero.B0[age] <- log(zero.intercept.age[age]/(1-zero.intercept.age[age]))
-      
     }
     
     # FIRST YEAR ABUNDANCE - STATE PROCESS
@@ -174,46 +160,15 @@ cat("
     
     #Time-varying vital rates
     for (year in 1:Y){
-
-      #Time-varying age-specific reproduction (but reproduction fluctuates synchronously)
-      log.reprod.resid[year] ~ dnorm(0,log.reprod.2.tau)
-      log.reprod.2[year] <- log.reprod.2.intercept + log.reprod.resid[year]
-      log.reprod.3[year] <- log.reprod.2.intercept + log.reprod.3.adjust + log.reprod.resid[year]
-      log.reprod.4[year] <- log.reprod.2.intercept + log.reprod.4.adjust + log.reprod.resid[year]
-
-      reprod.2[year] <- exp(log.reprod.2[year])
-      reprod.3[year] <- exp(log.reprod.3[year])
-      reprod.4[year] <- exp(log.reprod.4[year])
-
-      #Use this formulation if reproduction can vary independently from year to year among age classes (unconstrained)
-      #log.reprod.2[year] ~ dnorm(log.reprod.2.intercept, log.reprod.2.tau)
-      #reprod.2[year] <- exp(log.reprod.2[year])
-      #log.reprod.3[year] ~ dnorm(log.reprod.3.intercept, log.reprod.3.tau)
-      #reprod.3[year] <- exp(log.reprod.3[year])
-      #log.reprod.4[year] ~ dnorm(log.reprod.4.intercept, log.reprod.4.tau)
-      #reprod.4[year] <- exp(log.reprod.4[year])
+    
+      reprod.2[year] <- exp(log(reprod.2.intercept) + reprod.2.beta.cobble * cobble_year[year])
+      reprod.3[year] <- exp(log(reprod.3.intercept) + reprod.3.beta.cobble * cobble_year[year])
+      reprod.4[year] <- exp(log(reprod.4.intercept) + reprod.4.beta.cobble * cobble_year[year])
       
-      #Time-varying age-specific survival (but survival of all age classes fluctuate synchronously)
-      logit.surv.resid[year] ~ dnorm(0,logit.surv.0.tau)
-      logit.surv.0[year] <- logit.surv.0.intercept + logit.surv.resid[year]
-      logit.surv.1[year] <- logit.surv.0.intercept + logit.surv.1.adjust + logit.surv.resid[year]
-      logit.surv.2[year] <- logit.surv.0.intercept + logit.surv.2.adjust + logit.surv.resid[year]
-      logit.surv.3[year] <- logit.surv.0.intercept + logit.surv.3.adjust + logit.surv.resid[year]
-
-      surv.0[year] <- 1/(1+exp(logit.surv.0[year]))
-      surv.1[year] <- 1/(1+exp(logit.surv.1[year]))
-      surv.2[year] <- 1/(1+exp(logit.surv.2[year]))
-      surv.3[year] <- 1/(1+exp(logit.surv.3[year]))
-
-      #Use this formulation if survival can vary independently from year to year among age classes (unconstrained)
-      #logit.surv.0[year] ~ dnorm(logit.surv.0.intercept, logit.surv.0.tau)
-      #surv.0[year] <- 1/(1+exp(logit.surv.0[year]))
-      #logit.surv.1[year] ~ dnorm(logit.surv.1.intercept, logit.surv.1.tau)
-      #surv.1[year] <- 1/(1+exp(logit.surv.1[year]))
-      #logit.surv.2[year] ~ dnorm(logit.surv.2.intercept, logit.surv.2.tau)
-      #surv.2[year] <- 1/(1+exp(logit.surv.2[year]))
-      #logit.surv.3[year] ~ dnorm(logit.surv.3.intercept, logit.surv.3.tau)
-      #surv.3[year] <- 1/(1+exp(logit.surv.3[year]))
+      surv.0[year] <- 1/(1+exp(-(logit.surv.0.intercept + surv.0.beta.cobble * cobble_year[year])))
+      surv.1[year] <- 1/(1+exp(-(logit.surv.1.intercept + surv.1.beta.cobble * cobble_year[year])))
+      surv.2[year] <- 1/(1+exp(-(logit.surv.2.intercept + surv.2.beta.cobble * cobble_year[year])))
+      surv.3[year] <- 1/(1+exp(-(logit.surv.3.intercept + surv.3.beta.cobble * cobble_year[year])))
       
     }
     
@@ -335,33 +290,34 @@ jags.data <- list(N = N_array,
                   Y = dim(N_array)[1],
                   A = dim(N_array)[2],
                   O = dim(N_array)[3],
-                  fdepth = fdepth_array)
+                  fdepth = fdepth_array,
+                  cobble_year = cobble_year)
 
 # Initial values
-inits <- function() list(zero = array(0,dim = dim(N_array))#,r = c(0.35, 1.2, 1.2, 0.55, 0.55)
-                         )
+mu.count.init = matrix(NA,ncol = 5, nrow = length(years))
+mu.count.init[1,] = c(50,10,10,5,5)
+inits <- function() list(zero = array(0,dim = dim(N_array)),#,r = c(0.35, 1.2, 1.2, 0.55, 0.55)
+                         mu.count = mu.count.init)
 
 # Parameters monitored
 params <- c("r","zero.B0","beta.fdepth",
             
-            "log.reprod.2.intercept","log.reprod.3.adjust","log.reprod.4.adjust",
-            "log.reprod.2.sd",
+            "surv.0.intercept","surv.1.intercept","surv.2.intercept","surv.3.intercept",
+            "surv.0.beta.cobble","surv.1.beta.cobble","surv.2.beta.cobble","surv.3.beta.cobble",
             
-            "logit.surv.0.intercept","logit.surv.1.adjust","logit.surv.2.adjust","logit.surv.3.adjust",
-            "logit.surv.0.sd",
+            "reprod.2.intercept","reprod.3.intercept","reprod.4.intercept",
+            "reprod.2.beta.cobble","reprod.3.beta.cobble","reprod.4.beta.cobble",
             
-            "log.reprod.resid",
-            "logit.surv.resid",
             
-            "reprod.2","reprod.3","reprod.4",
             "surv.0","surv.1","surv.2","surv.3",
+            "reprod.2","reprod.3","reprod.4",
             "mu.count"
 )
 
 # MCMC settings
 ni <- 50000
 nt <- 2
-nb <- 45000
+nb <- 40000
 nc <- 2
 
 # Call JAGS from R
@@ -399,30 +355,35 @@ mu.5.ucl = apply(out$sims.list$mu.count[,,5],2,function(x) quantile(x,0.975))
 p1 = ggplot() +
   geom_ribbon(aes(x = years, ymin = mu.1.lcl, ymax = mu.1.ucl), alpha = 0.2) +
   geom_line(aes(x = years, y = mu.1.med)) +
+  coord_cartesian(ylim=c(0,100))+
   ylab("Rel. abundance")+
   theme_bw()
 
 p2 = ggplot() +
   geom_ribbon(aes(x = years, ymin = mu.2.lcl, ymax = mu.2.ucl), alpha = 0.2) +
   geom_line(aes(x = years, y = mu.2.med)) +
+  coord_cartesian(ylim=c(0,100))+
   ylab("Rel. abundance")+
   theme_bw()
 
 p3 = ggplot() +
   geom_ribbon(aes(x = years, ymin = mu.3.lcl, ymax = mu.3.ucl), alpha = 0.2) +
   geom_line(aes(x = years, y = mu.3.med)) +
+  coord_cartesian(ylim=c(0,100))+
   ylab("Rel. abundance")+
   theme_bw()
 
 p4 = ggplot() +
   geom_ribbon(aes(x = years, ymin = mu.4.lcl, ymax = mu.4.ucl), alpha = 0.2) +
   geom_line(aes(x = years, y = mu.4.med)) +
+  coord_cartesian(ylim=c(0,100))+
   ylab("Rel. abundance")+
   theme_bw()
 
 p5 = ggplot() +
   geom_ribbon(aes(x = years, ymin = mu.5.lcl, ymax = mu.5.ucl), alpha = 0.2) +
   geom_line(aes(x = years, y = mu.5.med)) +
+  coord_cartesian(ylim=c(0,100))+
   ylab("Rel. abundance")+
   theme_bw()
 
@@ -430,3 +391,4 @@ library(cowplot)
 
 fullplot = plot_grid(p1,p2,p3,p4,p5, nrow=5)
 print(fullplot)
+
