@@ -162,6 +162,9 @@ cat("
     sd.reprod ~ dunif(0,2)
     tau.reprod <- pow(sd.reprod,-2)
 
+    sd.surv ~ dunif(0,5)
+    tau.surv <- pow(sd.surv,-2)
+    
     #-----------------------------------------
     # LIKELIHOOD
     #-----------------------------------------
@@ -177,11 +180,16 @@ cat("
       reprod.3[year] <- exp(log.reprod.3[year])
       reprod.4[year] <- exp(log.reprod.4[year])
 
-      surv.0[year] <- 1/(1+exp(-(logit.surv.0.intercept + surv.0.beta.cobble * cobble_year[year])))
-      surv.1[year] <- 1/(1+exp(-(logit.surv.1.intercept + surv.1.beta.cobble * cobble_year[year])))
-      surv.2[year] <- 1/(1+exp(-(logit.surv.2.intercept + surv.2.beta.cobble * cobble_year[year])))
-      surv.3[year] <- 1/(1+exp(-(logit.surv.3.intercept + surv.3.beta.cobble * cobble_year[year])))
+      logit.surv.0[year] <- dnorm(logit.surv.0.intercept + surv.0.beta.cobble * cobble_year[year], tau.surv)
+      logit.surv.1[year] <- dnorm(logit.surv.1.intercept + surv.1.beta.cobble * cobble_year[year], tau.surv)
+      logit.surv.2[year] <- dnorm(logit.surv.2.intercept + surv.2.beta.cobble * cobble_year[year], tau.surv)
+      logit.surv.3[year] <- dnorm(logit.surv.3.intercept + surv.3.beta.cobble * cobble_year[year], tau.surv)
       
+      surv.0[year] <- 1/(1+exp(-logit.surv.0[year]))
+      surv.1[year] <- 1/(1+exp(-logit.surv.1[year]))
+      surv.2[year] <- 1/(1+exp(-logit.surv.2[year]))
+      surv.3[year] <- 1/(1+exp(-logit.surv.3[year]))
+
     }
     
     # FIRST YEAR
@@ -320,6 +328,7 @@ params <- c("r","zero.B0","beta.fdepth",
             "reprod.2.intercept","reprod.3.intercept","reprod.4.intercept",
             "reprod.2.beta.cobble","reprod.3.beta.cobble","reprod.4.beta.cobble",
             
+            "sd.surv","sd.reprod",
             
             "surv.0","surv.1","surv.2","surv.3",
             "reprod.2","reprod.3","reprod.4",
