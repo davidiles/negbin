@@ -5,32 +5,39 @@
     # Priors
     #-----------------------------------------
     
+    #
+    prob_detect_0 ~ dunif(0,1)
+    
     # Reproduction
-    reprod.2.intercept ~ dunif(0.001,100)
-    reprod.3.intercept ~ dunif(0.001,100)
-    reprod.4.intercept ~ dunif(0.001,100)
+    reprod.2.intercept ~ dunif(0.001,50)
+    reprod.3.intercept ~ dunif(0.001,50)
+    reprod.4.intercept ~ dunif(0.001,50)
+    
+    log.reprod.2.intercept <- log(reprod.2.intercept)
+    log.reprod.3.intercept <- log(reprod.3.intercept)
+    log.reprod.4.intercept <- log(reprod.4.intercept)
     
     # Survival
     surv.0.intercept ~ dunif(0,1)
     surv.1.intercept ~ dunif(0,1)
     surv.2.intercept ~ dunif(0,1)
     surv.3.intercept ~ dunif(0,1)
-
+    
     logit.surv.0.intercept <- log(surv.0.intercept/(1-surv.0.intercept))
     logit.surv.1.intercept <- log(surv.1.intercept/(1-surv.1.intercept))
     logit.surv.2.intercept <- log(surv.2.intercept/(1-surv.2.intercept))
     logit.surv.3.intercept <- log(surv.3.intercept/(1-surv.3.intercept))
-
+    
     #effect of cobble
     surv.0.beta.cobble ~ dnorm(0,0.01)
     surv.1.beta.cobble ~ dnorm(0,0.01)
     surv.2.beta.cobble ~ dnorm(0,0.01)
     surv.3.beta.cobble ~ dnorm(0,0.01)
-
+    
     reprod.2.beta.cobble ~ dnorm(0,0.01)
     reprod.3.beta.cobble ~ dnorm(0,0.01)
     reprod.4.beta.cobble ~ dnorm(0,0.01)
-
+    
     #Priors for observation effects
     #Effect of sampling depth on observed count
     beta.fdepth[1] <- 0
@@ -40,17 +47,27 @@
     
     # Each age has a different rate parameter (r) and a different zero-term; together these affect variance in observed counts
     for (age in 1:A){
-      r[age] ~ dunif(0,50)
-      zero.intercept.age[age] ~ dunif(0.001,0.999)
-      zero.B0[age] <- log(zero.intercept.age[age]/(1-zero.intercept.age[age]))
+    r[age] ~ dunif(0,10)
+    zero.intercept.age[age] ~ dunif(0.001,0.999)
+    zero.B0[age] <- log(zero.intercept.age[age]/(1-zero.intercept.age[age]))
     }
-    
+
     # FIRST YEAR ABUNDANCE - STATE PROCESS
-    mu.count[1,1] ~ dunif(0,10000)
-    mu.count[1,2] ~ dunif(0,10000)
-    mu.count[1,3] ~ dunif(0,10000)
-    mu.count[1,4] ~ dunif(0,10000)
-    mu.count[1,5] ~ dunif(0,10000)
+    mu.count[1,1] <- mu.count[1,3]*reprod.2[1] + mu.count[1,4]*reprod.3[1] + mu.count[1,5]*reprod.3[1]
+    
+    mu.count[1,2] ~ dunif(0.01,500)
+    mu.count[1,3] ~ dunif(0.01,500)
+    mu.count[1,4] ~ dunif(0.01,500)
+    mu.count[1,5] ~ dunif(0.01,500)
+    
+    #Only a fraction are actually available to be observed (relative detection probability)
+    mu.obs[1,1] <- mu.count[1,1]*prob_detect_0
+    
+    sd.reprod ~ dunif(0,4)
+    tau.reprod <- pow(sd.reprod,-2)
+    
+    sd.surv ~ dunif(0,5)
+    tau.surv <- pow(sd.surv,-2)
     
     #-----------------------------------------
     # LIKELIHOOD
@@ -59,15 +76,24 @@
     #Time-varying vital rates
     for (year in 1:Y){
     
-      reprod.2[year] <- exp(log(reprod.2.intercept) + reprod.2.beta.cobble * cobble_year[year])
-      reprod.3[year] <- exp(log(reprod.3.intercept) + reprod.3.beta.cobble * cobble_year[year])
-      reprod.4[year] <- exp(log(reprod.4.intercept) + reprod.4.beta.cobble * cobble_year[year])
-      
-      surv.0[year] <- 1/(1+exp(-(logit.surv.0.intercept + surv.0.beta.cobble * cobble_year[year])))
-      surv.1[year] <- 1/(1+exp(-(logit.surv.1.intercept + surv.1.beta.cobble * cobble_year[year])))
-      surv.2[year] <- 1/(1+exp(-(logit.surv.2.intercept + surv.2.beta.cobble * cobble_year[year])))
-      surv.3[year] <- 1/(1+exp(-(logit.surv.3.intercept + surv.3.beta.cobble * cobble_year[year])))
-      
+    log.reprod.2[year] ~ dnorm(log.reprod.2.intercept + reprod.2.beta.cobble * cobble_year[year], tau.reprod)
+    log.reprod.3[year] ~ dnorm(log.reprod.3.intercept + reprod.3.beta.cobble * cobble_year[year], tau.reprod)
+    log.reprod.4[year] ~ dnorm(log.reprod.4.intercept + reprod.4.beta.cobble * cobble_year[year], tau.reprod)
+    
+    reprod.2[year] <- exp(log.reprod.2[year])
+    reprod.3[year] <- exp(log.reprod.3[year])
+    reprod.4[year] <- exp(log.reprod.4[year])
+    
+    logit.surv.0[year] ~ dnorm(logit.surv.0.intercept + surv.0.beta.cobble * cobble_year[year], tau.surv)
+    logit.surv.1[year] ~ dnorm(logit.surv.1.intercept + surv.1.beta.cobble * cobble_year[year], tau.surv)
+    logit.surv.2[year] ~ dnorm(logit.surv.2.intercept + surv.2.beta.cobble * cobble_year[year], tau.surv)
+    logit.surv.3[year] ~ dnorm(logit.surv.3.intercept + surv.3.beta.cobble * cobble_year[year], tau.surv)
+    
+    surv.0[year] <- 1/(1+exp(-logit.surv.0[year]))
+    surv.1[year] <- 1/(1+exp(-logit.surv.1[year]))
+    surv.2[year] <- 1/(1+exp(-logit.surv.2[year]))
+    surv.3[year] <- 1/(1+exp(-logit.surv.3[year]))
+    
     }
     
     # FIRST YEAR
@@ -103,7 +129,7 @@
     logit.prob[1,5,obs] <-  zero.B0[5]
     
     #Adjust mu for effort covariates(fdepth)
-    mu.count.adjusted.for.effort[1,1,obs] <- exp(log(mu.count[1,1]) + beta.fdepth[fdepth[1, 1, obs]])
+    mu.count.adjusted.for.effort[1,1,obs] <- exp(log(mu.obs[1,1]) + beta.fdepth[fdepth[1, 1, obs]])
     mu.count.adjusted.for.effort[1,2,obs] <- exp(log(mu.count[1,2]) + beta.fdepth[fdepth[1, 2, obs]])
     mu.count.adjusted.for.effort[1,3,obs] <- exp(log(mu.count[1,3]) + beta.fdepth[fdepth[1, 3, obs]])
     mu.count.adjusted.for.effort[1,4,obs] <- exp(log(mu.count[1,4]) + beta.fdepth[fdepth[1, 4, obs]])
@@ -122,12 +148,15 @@
     for (year in 2:Y){
     
     #Population Model
-    mu.count[year,1] <- mu.count[year-1,3]*reprod.2[year-1] + mu.count[year-1,4]*reprod.3[year-1] + mu.count[year-1,5]*reprod.4[year-1]
+    mu.count[year,1] <- mu.count[year,3]*reprod.2[year] + mu.count[year,4]*reprod.3[year] + mu.count[year,5]*reprod.3[year]
     
-    mu.count[year,2] <- mu.count[year-1,1]*surv.0[year-1]
+    #Only a fraction are actually available to be observed (relative detection probability)
+    mu.obs[year,1] <- mu.count[year,1]*prob_detect_0
+    
+    mu.count[year,2] <- mu.count[year-1,1]*surv.1[year-1]
     mu.count[year,3] <- mu.count[year-1,2]*surv.1[year-1]
     mu.count[year,4] <- mu.count[year-1,3]*surv.2[year-1]
-    mu.count[year,5] <- mu.count[year-1,4]*surv.3[year-1]
+    mu.count[year,5] <- mu.count[year-1,4]*surv.2[year-1]
     
     # OBSERVATION PROCESS (ZERO INFLATED NEGATIVE BINOMIAL)
     #Observations are contingent on current mean for each age class
@@ -155,7 +184,7 @@
     logit.prob[year,5,obs] <-  zero.B0[5]
     
     #Adjust mu for effort covariates(fdepth)
-    mu.count.adjusted.for.effort[year,1,obs] <- exp(log(mu.count[year,1]) + beta.fdepth[fdepth[year, 1, obs]])
+    mu.count.adjusted.for.effort[year,1,obs] <- exp(log(mu.obs[year,1]) + beta.fdepth[fdepth[year, 1, obs]])
     mu.count.adjusted.for.effort[year,2,obs] <- exp(log(mu.count[year,2]) + beta.fdepth[fdepth[year, 2, obs]])
     mu.count.adjusted.for.effort[year,3,obs] <- exp(log(mu.count[year,3]) + beta.fdepth[fdepth[year, 3, obs]])
     mu.count.adjusted.for.effort[year,4,obs] <- exp(log(mu.count[year,4]) + beta.fdepth[fdepth[year, 4, obs]])
@@ -177,6 +206,10 @@
     }
     }
     
+for (year in 1:Y){
+    mu.breeding[year] <- mu.count[year,3] + mu.count[year,4] + mu.count[year,5]
+}
+
     
     
     }
